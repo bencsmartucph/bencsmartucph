@@ -53,7 +53,7 @@ ROWS = [
     ("blank",),
     ("section", "GitHub Stats"),
     ("stats", ("Repos", "repos"), ("Stars", "stars")),
-    ("stats", ("Contributions (12 mo)", "contributions"), ("Followers", "followers")),
+    ("stat", "Contributions (12 mo)", "contributions"),
 ]
 
 # GitHub Primer colours: card background, border, keys, values, leaders, text, art
@@ -83,7 +83,6 @@ AVATAR_CROP = (0.16, 0.03, 0.84, 0.80)  # left, top, right, bottom as fractions
 QUERY = """
 query($login: String!, $after: String) {
   user(login: $login) {
-    followers { totalCount }
     contributionsCollection { contributionCalendar { totalContributions } }
     repositories(privacy: PUBLIC, ownerAffiliations: OWNER, first: 100, after: $after) {
       totalCount
@@ -136,7 +135,6 @@ def fetch_stats():
         "repos": user["repositories"]["totalCount"],
         "stars": stars,
         "contributions": user["contributionsCollection"]["contributionCalendar"]["totalContributions"],
-        "followers": user["followers"]["totalCount"],
     }
 
 
@@ -147,7 +145,7 @@ def stats_or_placeholders():
         if os.environ.get("GITHUB_ACTIONS"):
             sys.exit(f"stats failed in CI, not writing placeholders: {exc}")
         print(f"stats unavailable, using placeholders: {exc}", file=sys.stderr)
-        return dict.fromkeys(("repos", "stars", "contributions", "followers"), "--")
+        return dict.fromkeys(("repos", "stars", "contributions"), "--")
 
 
 # ---------------------------------------------------------------- art
@@ -253,7 +251,7 @@ def info_lines(stats):
     user, host = HEADER
     rule = "-" * (WIDTH - len(user) - len(host) - 2)
     lines = [[("key", user), ("text", "@"), ("key", host), ("text", " " + rule)]]
-    half = 32  # left stat column; wide enough for "Contributions (12 mo)" plus five digits
+    half = (WIDTH - 3) // 2
     for row in ROWS:
         kind = row[0]
         if kind == "blank":
@@ -262,6 +260,8 @@ def info_lines(stats):
             lines.append([("text", f"- {row[1]} " + "-" * (WIDTH - len(row[1]) - 3))])
         elif kind == "kv":
             lines += kv(row[1], row[2], WIDTH)
+        elif kind == "stat":
+            lines += kv(row[1], stats[row[2]], WIDTH)
         elif kind == "stats":
             (lk, lkey), (rk, rkey) = row[1], row[2]
             left = kv(lk, stats[lkey], half)[0]
